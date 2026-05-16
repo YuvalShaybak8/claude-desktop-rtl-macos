@@ -1,0 +1,95 @@
+/* claude-desktop-rtl-mac
+ * RTL & bidi support for Claude Desktop on macOS
+ *
+ * Core trick: `unicode-bidi: plaintext` makes the browser auto-detect text
+ * direction from the first strong character (per Unicode UAX #9). This is
+ * the same behavior as the HTML `dir="auto"` attribute, applied via CSS.
+ *
+ * It is safe for LTR text — English/Latin content stays LTR. Only paragraphs
+ * that *start* with a strong RTL character (Hebrew, Arabic, etc.) flip.
+ */
+
+/* ---------- Message bodies (assistant & user) ---------- */
+.font-claude-message,
+.font-claude-response,
+.font-user-message,
+[class*="message-content"],
+[class*="MessageContent"],
+[class*="prose"],
+[class*="Prose"],
+[class*="markdown"],
+[class*="Markdown"] {
+  unicode-bidi: plaintext;
+}
+
+/* ---------- Block-level prose inside messages ---------- */
+.prose p,
+.prose li,
+.prose blockquote,
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+.prose h5,
+.prose h6,
+.prose td,
+.prose th,
+[class*="prose"] p,
+[class*="prose"] li,
+[class*="prose"] blockquote,
+[class*="prose"] h1,
+[class*="prose"] h2,
+[class*="prose"] h3,
+[class*="prose"] h4,
+[class*="prose"] h5,
+[class*="prose"] h6 {
+  unicode-bidi: plaintext;
+}
+
+/* ---------- Input area (composer) ---------- */
+textarea,
+[contenteditable="true"],
+[role="textbox"],
+.ProseMirror,
+.ProseMirror p,
+.ProseMirror li {
+  unicode-bidi: plaintext;
+}
+
+/* ---------- List markers: keep bullets on the correct side ---------- */
+.prose ul,
+.prose ol,
+[class*="prose"] ul,
+[class*="prose"] ol {
+  unicode-bidi: plaintext;
+}
+
+/* ---------- Code stays LTR always ---------- */
+/* Code is by convention left-to-right; we never want to flip it,
+   even if it contains comments in Hebrew. */
+pre,
+code,
+pre *,
+code *,
+.hljs,
+.hljs *,
+[class*="code-block"],
+[class*="CodeBlock"] {
+  unicode-bidi: normal !important;
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+/* ---------- Inline code inside prose: keep LTR ---------- */
+.prose :not(pre) > code,
+[class*="prose"] :not(pre) > code {
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+/* ---------- Misc helpers ---------- */
+/* Make sure long Hebrew lines wrap nicely */
+[class*="message"] {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
