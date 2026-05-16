@@ -2,7 +2,7 @@
 
 RTL & bidirectional text support for [Claude Desktop](https://claude.ai/download) on **macOS**.
 
-If you write in Hebrew, Arabic, or any other right-to-left language, this patch makes Claude Desktop render your text — and Claude's replies — in the correct direction.
+If you write in Hebrew or any other right-to-left language, this patch makes Claude Desktop render your text — and Claude's replies — in the correct direction.
 
 > A macOS counterpart to existing Windows-only solutions for the same problem.
 
