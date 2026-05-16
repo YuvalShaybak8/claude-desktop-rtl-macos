@@ -39,6 +39,8 @@ fi
 
 ASAR_PATH="$CLAUDE_APP/Contents/Resources/app.asar"
 BACKUP_PATH="$ASAR_PATH.original"
+INFO_PLIST="$CLAUDE_APP/Contents/Info.plist"
+INFO_PLIST_BACKUP="$INFO_PLIST.original"
 
 if [[ ! -f "$BACKUP_PATH" ]]; then
   err "No backup found at $BACKUP_PATH"
@@ -53,6 +55,14 @@ info "Restoring original app.asar (requires admin privileges)..."
 sudo cp "$BACKUP_PATH" "$ASAR_PATH"
 ok "Restored"
 
+if [[ -f "$INFO_PLIST_BACKUP" ]]; then
+  info "Restoring original Info.plist..."
+  sudo cp "$INFO_PLIST_BACKUP" "$INFO_PLIST"
+  ok "Info.plist restored"
+else
+  warn "No Info.plist backup found — leaving current Info.plist in place"
+fi
+
 info "Re-signing Claude.app..."
 sudo codesign --force --deep --sign - "$CLAUDE_APP" 2>/dev/null || true
 ok "Signed"
@@ -60,6 +70,7 @@ ok "Signed"
 read -r -p "Delete backup file? [y/N] " reply
 if [[ "$reply" =~ ^[Yy]$ ]]; then
   sudo rm -f "$BACKUP_PATH"
+  sudo rm -f "$INFO_PLIST_BACKUP"
   ok "Backup deleted"
 else
   warn "Backup kept at $BACKUP_PATH"

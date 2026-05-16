@@ -45,6 +45,8 @@ ok "Found Claude.app at $CLAUDE_APP"
 
 ASAR_PATH="$CLAUDE_APP/Contents/Resources/app.asar"
 BACKUP_PATH="$ASAR_PATH.original"
+INFO_PLIST="$CLAUDE_APP/Contents/Info.plist"
+INFO_PLIST_BACKUP="$INFO_PLIST.original"
 
 if [[ ! -f "$ASAR_PATH" ]]; then
   err "app.asar not found at $ASAR_PATH"
@@ -76,6 +78,61 @@ for f in "$RTL_CSS" "$INJECT_JS" "$PATCH_JS"; do
   fi
 done
 
+asar_header_hash() {
+  node - "$1" <<'NODE'
+const crypto = require('crypto');
+const fs = require('fs');
+
+const archivePath = process.argv[2];
+const fd = fs.openSync(archivePath, 'r');
+
+try {
+  const sizeBuf = Buffer.alloc(8);
+  if (fs.readSync(fd, sizeBuf, 0, 8, 0) !== 8) {
+    throw new Error('Unable to read ASAR header size');
+  }
+
+  // ASAR starts with a Chromium pickle containing the header pickle size.
+  const headerPickleSize = sizeBuf.readUInt32LE(4);
+  const headerBuf = Buffer.alloc(headerPickleSize);
+  if (fs.readSync(fd, headerBuf, 0, headerPickleSize, 8) !== headerPickleSize) {
+    throw new Error('Unable to read ASAR header');
+  }
+
+  const headerStringLength = headerBuf.readInt32LE(4);
+  const headerString = headerBuf.toString('utf8', 8, 8 + headerStringLength);
+  process.stdout.write(crypto.createHash('sha256').update(headerString).digest('hex'));
+} finally {
+  fs.closeSync(fd);
+}
+NODE
+}
+
+update_asar_integrity() {
+  local hash="$1"
+  local updated_plist="$TMP_DIR/Info.plist"
+
+  python3 - "$INFO_PLIST" "$updated_plist" "$hash" <<'PY'
+import plistlib
+import sys
+
+source, dest, asar_hash = sys.argv[1:4]
+
+with open(source, 'rb') as f:
+    plist = plistlib.load(f)
+
+integrity = plist.setdefault('ElectronAsarIntegrity', {})
+app_asar = integrity.setdefault('Resources/app.asar', {})
+app_asar['algorithm'] = 'SHA256'
+app_asar['hash'] = asar_hash
+
+with open(dest, 'wb') as f:
+    plistlib.dump(plist, f, sort_keys=False)
+PY
+
+  sudo cp "$updated_plist" "$INFO_PLIST"
+}
+
 # ----- warn if Claude is running -----
 if pgrep -x "Claude" >/dev/null 2>&1; then
   warn "Claude Desktop appears to be running."
@@ -105,6 +162,14 @@ if [[ ! -f "$BACKUP_PATH" ]]; then
   ok "Backup created"
 else
   warn "Backup already exists at app.asar.original — leaving it untouched"
+fi
+
+if [[ -f "$INFO_PLIST" && ! -f "$INFO_PLIST_BACKUP" ]]; then
+  info "Backing up original Info.plist → Info.plist.original"
+  sudo cp "$INFO_PLIST" "$INFO_PLIST_BACKUP"
+  ok "Info.plist backup created"
+elif [[ -f "$INFO_PLIST_BACKUP" ]]; then
+  warn "Info.plist backup already exists — leaving it untouched"
 fi
 
 # ----- extract -----
@@ -142,6 +207,14 @@ NEW_ASAR="$TMP_DIR/app.asar.new"
 npx --yes @electron/asar@latest pack "$EXTRACT_DIR" "$NEW_ASAR" >/dev/null
 sudo cp "$NEW_ASAR" "$ASAR_PATH"
 ok "Repacked"
+
+# ----- update Electron ASAR integrity metadata -----
+if [[ -f "$INFO_PLIST" ]]; then
+  info "Updating Electron ASAR integrity hash..."
+  ASAR_HASH="$(asar_header_hash "$ASAR_PATH")"
+  update_asar_integrity "$ASAR_HASH"
+  ok "Integrity hash updated"
+fi
 
 # ----- re-sign (ad-hoc) -----
 info "Re-signing Claude.app with an ad-hoc signature..."
