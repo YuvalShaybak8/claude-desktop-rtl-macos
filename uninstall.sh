@@ -51,26 +51,43 @@ fi
 
 ok "Found backup at $BACKUP_PATH"
 
-info "Restoring original app.asar (requires admin privileges)..."
-sudo cp "$BACKUP_PATH" "$ASAR_PATH"
+USE_SUDO=0
+run_privileged() {
+  if [[ "$USE_SUDO" -eq 1 ]]; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
+
+if [[ ! -w "$ASAR_PATH" || ! -w "$INFO_PLIST" || ! -w "$(dirname "$ASAR_PATH")" || ! -w "$(dirname "$INFO_PLIST")" ]]; then
+  USE_SUDO=1
+  info "Restoring Claude.app requires admin privileges. You may be prompted for your password."
+  sudo -v
+else
+  ok "Claude.app is writable by the current user; no admin password needed"
+fi
+
+info "Restoring original app.asar..."
+run_privileged cp "$BACKUP_PATH" "$ASAR_PATH"
 ok "Restored"
 
 if [[ -f "$INFO_PLIST_BACKUP" ]]; then
   info "Restoring original Info.plist..."
-  sudo cp "$INFO_PLIST_BACKUP" "$INFO_PLIST"
+  run_privileged cp "$INFO_PLIST_BACKUP" "$INFO_PLIST"
   ok "Info.plist restored"
 else
   warn "No Info.plist backup found — leaving current Info.plist in place"
 fi
 
 info "Re-signing Claude.app..."
-sudo codesign --force --deep --sign - "$CLAUDE_APP" 2>/dev/null || true
+run_privileged codesign --force --deep --sign - "$CLAUDE_APP" 2>/dev/null || true
 ok "Signed"
 
 read -r -p "Delete backup file? [y/N] " reply
 if [[ "$reply" =~ ^[Yy]$ ]]; then
-  sudo rm -f "$BACKUP_PATH"
-  sudo rm -f "$INFO_PLIST_BACKUP"
+  run_privileged rm -f "$BACKUP_PATH"
+  run_privileged rm -f "$INFO_PLIST_BACKUP"
   ok "Backup deleted"
 else
   warn "Backup kept at $BACKUP_PATH"

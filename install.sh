@@ -130,7 +130,7 @@ with open(dest, 'wb') as f:
     plistlib.dump(plist, f, sort_keys=False)
 PY
 
-  sudo cp "$updated_plist" "$INFO_PLIST"
+  run_privileged cp "$updated_plist" "$INFO_PLIST"
 }
 
 # ----- warn if Claude is running -----
@@ -140,25 +140,43 @@ if pgrep -x "Claude" >/dev/null 2>&1; then
   echo
 fi
 
-# ----- sudo upfront -----
-info "Modifying $CLAUDE_APP requires admin privileges. You may be prompted for your password."
-sudo -v
-# Keep sudo alive for the duration of the script.
-( while true; do sudo -n true; sleep 30; kill -0 "$$" 2>/dev/null || exit; done ) &
-SUDO_KEEPALIVE_PID=$!
+# ----- privileges -----
+USE_SUDO=0
+SUDO_KEEPALIVE_PID=""
+
+run_privileged() {
+  if [[ "$USE_SUDO" -eq 1 ]]; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
+
+if [[ ! -w "$ASAR_PATH" || ! -w "$INFO_PLIST" || ! -w "$(dirname "$ASAR_PATH")" || ! -w "$(dirname "$INFO_PLIST")" ]]; then
+  USE_SUDO=1
+  info "Modifying $CLAUDE_APP requires admin privileges. You may be prompted for your password."
+  sudo -v
+  # Keep sudo alive for the duration of the script.
+  ( while true; do sudo -n true; sleep 30; kill -0 "$$" 2>/dev/null || exit; done ) &
+  SUDO_KEEPALIVE_PID=$!
+else
+  ok "Claude.app is writable by the current user; no admin password needed"
+fi
 
 # ----- temp dir + cleanup trap -----
 TMP_DIR="$(mktemp -d)"
 cleanup() {
   rm -rf "$TMP_DIR"
-  kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+  if [[ -n "$SUDO_KEEPALIVE_PID" ]]; then
+    kill "$SUDO_KEEPALIVE_PID" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT
 
 # ----- backup original asar -----
 if [[ ! -f "$BACKUP_PATH" ]]; then
   info "Backing up original app.asar → app.asar.original"
-  sudo cp "$ASAR_PATH" "$BACKUP_PATH"
+  run_privileged cp "$ASAR_PATH" "$BACKUP_PATH"
   ok "Backup created"
 else
   warn "Backup already exists at app.asar.original — leaving it untouched"
@@ -166,7 +184,7 @@ fi
 
 if [[ -f "$INFO_PLIST" && ! -f "$INFO_PLIST_BACKUP" ]]; then
   info "Backing up original Info.plist → Info.plist.original"
-  sudo cp "$INFO_PLIST" "$INFO_PLIST_BACKUP"
+  run_privileged cp "$INFO_PLIST" "$INFO_PLIST_BACKUP"
   ok "Info.plist backup created"
 elif [[ -f "$INFO_PLIST_BACKUP" ]]; then
   warn "Info.plist backup already exists — leaving it untouched"
@@ -205,7 +223,7 @@ ok "All HTML files patched"
 info "Repacking app.asar..."
 NEW_ASAR="$TMP_DIR/app.asar.new"
 npx --yes @electron/asar@latest pack "$EXTRACT_DIR" "$NEW_ASAR" >/dev/null
-sudo cp "$NEW_ASAR" "$ASAR_PATH"
+run_privileged cp "$NEW_ASAR" "$ASAR_PATH"
 ok "Repacked"
 
 # ----- update Electron ASAR integrity metadata -----
@@ -219,14 +237,14 @@ fi
 # ----- re-sign (ad-hoc) -----
 info "Re-signing Claude.app with an ad-hoc signature..."
 # stderr filtering: codesign is chatty and most output is noise we can ignore
-if sudo codesign --force --deep --sign - "$CLAUDE_APP" 2>&1 \
+if run_privileged codesign --force --deep --sign - "$CLAUDE_APP" 2>&1 \
      | grep -v -e "replacing existing signature" -e "^$" >/dev/null; then :; fi
 ok "Signed"
 
 # ----- remove quarantine attribute if present -----
 if xattr -p com.apple.quarantine "$CLAUDE_APP" >/dev/null 2>&1; then
   info "Removing quarantine attribute..."
-  sudo xattr -dr com.apple.quarantine "$CLAUDE_APP"
+  run_privileged xattr -dr com.apple.quarantine "$CLAUDE_APP"
   ok "Quarantine cleared"
 fi
 
