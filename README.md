@@ -11,7 +11,7 @@ If you write in Hebrew or any other right-to-left language, this patch makes Cla
 ## What it does
 
 - Detects message direction automatically based on the first strong character of each paragraph (Unicode UAX #9 / HTML `dir="auto"` behavior).
-- Hebrew/Arabic paragraphs render right-aligned and right-to-left.
+- Hebrew paragraphs render right-aligned and right-to-left.
 - English/Latin paragraphs are untouched and stay LTR.
 - Mixed-direction documents (e.g. Hebrew with English technical terms) are handled correctly.
 - Code blocks always stay LTR — even if they contain RTL comments.
