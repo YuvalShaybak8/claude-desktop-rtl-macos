@@ -114,7 +114,10 @@ npx --yes @electron/asar@latest extract "$ASAR_PATH" "$EXTRACT_DIR" >/dev/null
 ok "Extracted"
 
 # ----- find index.html files -----
-mapfile -t HTML_FILES < <(find "$EXTRACT_DIR" -name 'index.html' -not -path '*/node_modules/*')
+HTML_FILES=()
+while IFS= read -r __line; do
+  HTML_FILES+=("$__line")
+done < <(find "$EXTRACT_DIR" -name 'index.html' -not -path '*/node_modules/*')
 
 if [[ ${#HTML_FILES[@]} -eq 0 ]]; then
   err "No index.html found inside extracted app.asar."
