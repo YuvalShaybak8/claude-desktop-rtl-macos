@@ -2,7 +2,7 @@
 
 RTL & bidirectional text support for [Claude Desktop](https://claude.ai/download) on **macOS**.
 
-If you write in Hebrew, Arabic, or any other right-to-left language, this patch makes Claude Desktop render your text — and Claude's replies — in the correct direction.
+If you write in Hebrew or any other right-to-left language, this patch makes Claude Desktop render your text — and Claude's replies — in the correct direction.
 
 > A macOS counterpart to existing Windows-only solutions for the same problem.
 
@@ -11,7 +11,7 @@ If you write in Hebrew, Arabic, or any other right-to-left language, this patch 
 ## What it does
 
 - Detects message direction automatically based on the first strong character of each paragraph (Unicode UAX #9 / HTML `dir="auto"` behavior).
-- Hebrew/Arabic paragraphs render right-aligned and right-to-left.
+- Hebrew paragraphs render right-aligned and right-to-left.
 - English/Latin paragraphs are untouched and stay LTR.
 - Mixed-direction documents (e.g. Hebrew with English technical terms) are handled correctly.
 - Code blocks always stay LTR — even if they contain RTL comments.
@@ -82,14 +82,14 @@ MIT. See `LICENSE`.
 
 תמיכת RTL ו-bidi עבור [Claude Desktop](https://claude.ai/download) ב-**macOS**.
 
-אם אתה כותב בעברית או בערבית, התיקון הזה גורם ל-Claude Desktop להציג את הטקסט שלך — ואת התשובות של Claude — בכיוון הנכון.
+אם אתה כותב בעברית התיקון הזה גורם ל-Claude Desktop להציג את הטקסט שלך — ואת התשובות של Claude — בכיוון הנכון.
 
 > זהו פתרון macOS מקביל לפתרונות Windows קיימים לאותה בעיה.
 
 ## מה זה עושה
 
 - מזהה אוטומטית את כיוון הפסקה לפי התו החזק הראשון שלה.
-- פסקאות בעברית/ערבית: מיושרות לימין, בכיוון RTL.
+- פסקאות בעברית: מיושרות לימין, בכיוון RTL.
 - פסקאות באנגלית/לטינית: נשארות כפי שהן (LTR).
 - טקסט מעורב מטופל נכון.
 - בלוקי קוד תמיד נשארים LTR, גם אם יש בהם הערות בעברית.
